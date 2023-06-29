@@ -17,7 +17,6 @@ import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
-import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.StandardGuildMessageChannel;
@@ -209,7 +208,7 @@ public class Discord extends Thread {
     public Member getMemberById(Long userid) {
         if (memberCache.containsKey(userid)) return memberCache.get(userid);
         else {
-            final Member out = getMemberById(userid);
+            final Member out = getChannel().getGuild().getMemberById(userid); //getMemberById(userid);
             memberCache.put(userid, out);
             return out;
         }
@@ -332,27 +331,22 @@ public class Discord extends Thread {
             t.printStackTrace();
         }));
 
-        final Thread t = new Thread(() -> {
+        WorkThread.executeJob(() -> {
             Variables.LOGGER.info("Loading DiscordIntegration addons...");
             AddonLoader.loadAddons(this);
             Variables.LOGGER.info("Addon loading complete!");
         });
-        t.setName("Discord Integration - Addon-Loader");
-        t.setDaemon(true);
-        t.start();
 
-        final Thread unlink = new Thread(() -> {
-            for (PlayerLink p : PlayerLinkController.getAllLinks()) {
-                try {
-                    getMemberById(Long.valueOf(p.discordID));
-                } catch (ErrorResponseException e) {
-                    PlayerLinkController.unlinkPlayer(p.discordID);
+        if (Configuration.instance().linking.unlinkOnLeave)
+            WorkThread.executeJob(() -> {
+                for (PlayerLink p : PlayerLinkController.getAllLinks()) {
+                    try {
+                        getMemberById(Long.valueOf(p.discordID));
+                    } catch (ErrorResponseException e) {
+                        PlayerLinkController.unlinkPlayer(p.discordID);
+                    }
                 }
-            }
-        });
-        unlink.setName("Discord Integration Link Check");
-        unlink.setDaemon(true);
-        if (Configuration.instance().linking.unlinkOnLeave) unlink.start();
+            });
 
     }
 
@@ -471,7 +465,7 @@ public class Discord extends Thread {
      * Starts all sub-threads
      */
     public void startThreads() {
-        final Thread t = new Thread(() -> {
+        WorkThread.executeJob(() -> {
             try {
                 CommandRegistry.updateSlashCommands();
             } catch (IllegalStateException e) {
@@ -481,8 +475,6 @@ public class Discord extends Thread {
                 Variables.LOGGER.error("Failed to register slash commands! Please re-invite the bot to all servers the bot is on using this link: " + jda.getInviteUrl(Permission.getPermissions(2953964624L)).replace("scope=", "scope=applications.commands%20"));
             }
         });
-        t.setDaemon(true);
-        t.start();
         if (statusUpdater == null) statusUpdater = new StatusUpdateThread();
         if (messageSender == null) messageSender = new MessageQueueThread();
         if (!messageSender.isAlive()) messageSender.start();
@@ -617,7 +609,7 @@ public class Discord extends Thread {
      */
     public void sendMessage(String name, DiscordMessage message, String avatarURL, MessageChannel channel, boolean isChatMessage, String uuid) {
         if (jda == null || channel == null) return;
-        final Thread t = new Thread(() -> {
+        WorkThread.executeJob(() -> {
             try {
                 if (Configuration.instance().webhook.enable) {
                     if (isChatMessage) message.setIsChatMessage();
@@ -638,9 +630,6 @@ public class Discord extends Thread {
                 e.printStackTrace();
             }
         });
-        t.setDaemon(true);
-        t.setName("Discord Integration - SendMessage");
-        t.start();
     }
 
     /**
@@ -679,7 +668,7 @@ public class Discord extends Thread {
      * @return Sent message
      */
 
-    public CompletableFuture<Message> sendMessageReturns(String msg, TextChannel c) {
+    public CompletableFuture<Message> sendMessageReturns(String msg, MessageChannel c) {
         if (Configuration.instance().webhook.enable || msg.isEmpty() || c == null) return null;
         else return c.sendMessage(msg).submit();
     }
