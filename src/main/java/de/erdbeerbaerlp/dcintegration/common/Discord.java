@@ -208,7 +208,7 @@ public class Discord extends Thread {
     public Member getMemberById(Long userid) {
         if (memberCache.containsKey(userid)) return memberCache.get(userid);
         else {
-            final Member out = getChannel().getGuild().getMemberById(userid); //getMemberById(userid);
+            final Member out = getChannel().getGuild().retrieveMember(UserSnowflake.fromId(userid)).complete();
             memberCache.put(userid, out);
             return out;
         }
