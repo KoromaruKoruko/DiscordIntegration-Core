@@ -343,11 +343,11 @@ public class Discord extends Thread {
                 for (PlayerLink p : PlayerLinkController.getAllLinks()) {
                     try {
                         if(getMemberById(Long.valueOf(p.discordID)) == null) {
-                            PlayerLinkController.unlinkPlayer(p.discordID);
+                            PlayerLinkController.unlinkPlayer(p.discordID, false);
                             unlinked++;
                         }
                     } catch (ErrorResponseException e) {
-                        PlayerLinkController.unlinkPlayer(p.discordID);
+                        PlayerLinkController.unlinkPlayer(p.discordID, false);
                         unlinked++;
                     }
                 }
